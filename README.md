@@ -19,7 +19,7 @@ Implemented so far
 - [x] Explicit piece representation using strings, such as "wK", "bQ", and "wP"
 - [x] Empty-square representation
 - [x] Text-based board display
-- [ ] Complete legal move generation
+- [x] Complete legal move generation
 - [ ] Check, checkmate, and stalemate detection
 - [ ] Special moves and draw rules
 - [ ] Chess engine search and position evaluation
@@ -61,9 +61,9 @@ Phase 1 — The Board
 - [x] Define piece constants and the empty-square representation
 - [x] Create the initial board representation
 - [x] Display the board in the terminal
-- [ ] Implement reliable piece movement
-- [ ] Handle captures and pawn movement
-- [ ] Validate moves against the rules of chess
+- [x] Implement reliable piece movement
+- [x] Handle captures and pawn movement
+- [x] Validate moves against the rules of chess
 
 Phase 2 — A Complete Chess Rules System
 
