@@ -20,10 +20,10 @@ Implemented so far
 - [x] Empty-square representation
 - [x] Text-based board display
 - [x] Complete legal move generation
-- [ ] Check, checkmate, and stalemate detection
+- [x] Check, checkmate, and stalemate detection
 - [ ] Special moves and draw rules
 - [ ] Chess engine search and position evaluation
-- [ ] Playable graphical interface
+- [x] Playable graphical interface
 - [ ] Web deployment
 
 The checklist tracks development milestones; only completed features should be marked as implemented.
@@ -67,12 +67,12 @@ Phase 1 — The Board
 
 Phase 2 — A Complete Chess Rules System
 
-- [ ] Implement king-safety checks
-- [ ] Detect check, checkmate, and stalemate
-- [ ] Implement castling and en passant
-- [ ] Implement pawn promotion
+- [x] Implement king-safety checks
+- [x] Detect check, checkmate, and stalemate
+- [x] Implement castling and en passant
+- [x] Implement pawn promotion
 - [ ] Track draw conditions
-- [ ] Test positions and edge cases
+- [x] Test positions and edge cases
 
 Phase 3 — The Engine
 
