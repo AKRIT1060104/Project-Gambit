@@ -2,6 +2,7 @@ import pygame
 import sys
 from pathlib import Path
 from board import Chessboard
+from engine import *
 
 pygame.init()
 SQUARE_SIZE = 130
@@ -146,10 +147,11 @@ while running:
 			if events.type == pygame.QUIT:
 				pygame.quit()
 				sys.exit()
+			if game.who_to_move == "BLACK":
+				game.make_move(best_move(game,3))
 		screen.fill((0,0,0))
 		draw_board()
 		draw_move_indicator()
 		pygame.display.update()
 		clock.tick(60)
 		
-	
