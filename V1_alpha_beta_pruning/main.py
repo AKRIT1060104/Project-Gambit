@@ -26,8 +26,8 @@ for piece in PIECES:
 	path = str(ASSET_DIR / f"{piece}.png")
 	image = pygame.image.load(str(path)).convert_alpha()
 	
-	pygame.transform.smoothscale(image,(SQUARE_SIZE-10,SQUARE_SIZE-10))
-	images[piece] = image
+	
+	images[piece] = pygame.transform.smoothscale(image,(SQUARE_SIZE-10,SQUARE_SIZE-10))
 
 
 game = Chessboard()
@@ -109,11 +109,17 @@ running = True
 clock = pygame.time.Clock()
 while running:
 		events_list = pygame.event.get()
+		
+		#engine plays
+		if game.who_to_move == "BLACK":
+			best = best_move(game,3)
+			game.make_move(best)
+			last_move = best
 		for events in events_list:
 			if events.type == pygame.MOUSEBUTTONDOWN:
 				mouse_x,mouse_y = events.pos
-				row = mouse_y // 130
-				col = mouse_x// 130
+				row = mouse_y // SQUARE_SIZE
+				col = mouse_x// SQUARE_SIZE
 				
 				clicked_piece = game.get_piece(row,col)
 				if selected_square == None:
@@ -147,8 +153,7 @@ while running:
 			if events.type == pygame.QUIT:
 				pygame.quit()
 				sys.exit()
-			if game.who_to_move == "BLACK":
-				game.make_move(best_move(game,3))
+
 		screen.fill((0,0,0))
 		draw_board()
 		draw_move_indicator()
