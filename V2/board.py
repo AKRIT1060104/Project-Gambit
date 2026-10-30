@@ -15,10 +15,22 @@ class Chessboard:
 	BLACK_KING = "bK"
 	BLACK_PAWN = "bP"
 	
+	#sliding pieces offsets
+	KNIGHT_OFFSETS = ((2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2))
+	KING_OFFSETS   = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
+	BISHOP_OFFSETS = ((1, 1), (1, -1), (-1, 1), (-1, -1))
+	ROOK_OFFSETS   = ((1, 0), (-1, 0), (0, 1), (0, -1))
+	CORNER_RIGHTS  = {(7, 7): "WK", (7, 0): "WQ", (0, 7): "BK", (0, 0): "BQ"}
+	
 	
 	def __init__(self):
 		self.who_to_move = "WHITE"
 		self.move_history = []
+		
+		#kings square cache
+		self.white_king_square = (7,4)
+		self.black_king_square = (0,4)
+		
 		#castling rights/flags
 		self.castling_rights = {"WK": True, "WQ": True, "BK": True,"BQ": True}
 		#W/B is the colour and K/Q is kingside or queen side
@@ -98,6 +110,12 @@ class Chessboard:
 				
 	def place_piece(self,row,col,piece):
 		self.board[row][col] = piece
+		
+		#updates the kings position
+		if piece == self.WHITE_KING:
+			self.white_king_square = (row,col)
+		elif piece == self.BLACK_KING:
+			self.black_king_square = (row,col)
 	
 	def load_fen(self,fen):
 		self.clear_board()
@@ -116,7 +134,13 @@ class Chessboard:
 					col = col + int(charac)
 				else:
 					colour_letter = "w" if charac.isupper() else "b"
-					self.board[row_indx][col] = colour_letter + charac.upper()
+					piece = colour_letter + charac.upper()
+					self.board[row_indx][col] = piece
+					
+					if piece == self.WHITE_KING:
+						self.white_king_square = (row_indx,col)
+					elif piece == self.BLACK_KING:
+						self.black_king_square = (row_indx,col)
 					col += 1
 		#whos turn
 		if side == "w": self.who_to_move = "WHITE"
@@ -168,10 +192,9 @@ class Chessboard:
 		print("Total:",sum(results.values()))
 #finds the king and gives the row,col
 	def find_king(self,colour):
-		for row,i in enumerate(self.board):
-			for col,element in enumerate(i):
-				if self.get_piece_type(row,col) == "K" and self.get_piece_colour(row,col) == colour:
-					return row,col
+		if colour == "WHITE":
+			return self.white_king_square
+		return self.black_king_square
 					
 	#checks if a square is attacked and can my king move there
 	def is_attacked(self,square):
@@ -261,6 +284,38 @@ class Chessboard:
 		if self.is_in_check(self.who_to_move):
 			return "checkmate"
 		return "stalemate"
+	def clone(self):
+		new_game = Chessboard.__new__(Chessboard)
+		new_game.board = [row.copy() for row in self.board]
+		new_game.who_to_move = self.who_to_move
+		new_game.move_history = []
+		new_game.castling_rights = self.castling_rights.copy()
+		new_game.en_passant_square = self.en_passant_square
+		new_game.white_king_square = self.white_king_square
+		new_game.black_king_square = self.black_king_square
+		
+		return new_game
+		
+	def sliding_moves(self,row,col,offset):
+			moves = []
+			offsets = offset
+
+			for o_row,o_col in offsets:
+				to_row = row + o_row
+				to_col = col + o_col
+
+				while 0 <= to_row < 8 and 0<= to_col <8:
+					piece_colour = self.get_piece_colour(to_row,to_col)
+					if piece_colour == self.who_to_move:
+						break
+					elif piece_colour == self.EMPTY:
+						moves.append(Move(row,col,to_row,to_col))
+					else:
+						moves.append(Move(row,col,to_row,to_col))
+						break
+					to_row += o_row
+					to_col += o_col
+			return moves
 				
 		
 		
@@ -298,6 +353,12 @@ class Chessboard:
 				
 				#castling
 				if target_piece[1] == "K":
+					if target_piece_colour == "WHITE":
+						self.white_king_square = (move.to_row,move.to_col)
+						self.castling_rights.update(WK=False,WQ=False)
+					else:
+						self.black_king_square = (move.to_row,move.to_col)
+						self.castling_rights.update(BK=False,BQ=False)
 					#Rook moves for castling
 					if move.is_castle:
 						row = move.from_row
@@ -315,9 +376,8 @@ class Chessboard:
 					else:
 						self.castling_rights.update(BK=False,BQ=False)
 				#each corner belongs to exactly one castling right
-				corner_rights = {(7,7):"WK",(7,0):"WQ",(0,7):"BK",(0,0):"BQ"}
 				
-				for corner,right in corner_rights.items():
+				for corner,right in self.CORNER_RIGHTS.items():
 					if (move.from_row,move.from_col) == corner or (move.to_row,move.to_col) == corner:
 						self.castling_rights[right] = False
 						
@@ -347,8 +407,14 @@ class Chessboard:
 				self.board[history.to_row][history.to_col] = history.captured_piece
 				self.move_history.pop()
 				
+				if history.moving_piece == self.WHITE_KING:
+					self.white_king_square = (history.from_row, history.from_col)
+				elif history.moving_piece == self.BLACK_KING:
+					self.black_king_square = (history.from_row, history.from_col)
+
+				
 				#undo special moves flags
-				self.castling_rights = history.saved_rights.copy()
+				self.castling_rights = history.saved_rights
 				self.en_passant_square = history.saved_enpassant
 				
 				if history.is_castle:
@@ -453,68 +519,14 @@ class Chessboard:
 
 	#bishop move gen
 	def bishop_moves (self,row,col):
-			moves = []
-			offsets = [(1, 1),(1, -1),(-1, 1),(-1,-1)]
-
-			for o_row,o_col in offsets:
-				to_row = row + o_row
-				to_col = col + o_col
-
-				while 0 <= to_row < 8 and 0<= to_col <8:
-					piece_colour = self.get_piece_colour(to_row,to_col)
-					if piece_colour == self.who_to_move:
-						break
-					elif piece_colour == self.EMPTY:
-						moves.append(Move(row,col,to_row,to_col))
-					else:
-						moves.append(Move(row,col,to_row,to_col))
-						break
-					to_row += o_row
-					to_col += o_col
-			return moves
+			return self.sliding_moves(row,col,self.BISHOP_OFFSETS)
 	#rook move gen
 	def rook_moves (self,row,col):
-			moves = []
-			offsets = [(1, 0),(-1, 0),(0, 1),(0,-1)]
-
-			for o_row,o_col in offsets:
-				to_row = row + o_row
-				to_col = col + o_col
-
-				while 0 <= to_row < 8 and 0<= to_col <8:
-					piece_colour = self.get_piece_colour(to_row,to_col)
-					if piece_colour == self.who_to_move:
-						break
-					elif piece_colour == self.EMPTY:
-						moves.append(Move(row,col,to_row,to_col))
-					else:
-						moves.append(Move(row,col,to_row,to_col))
-						break
-					to_row += o_row
-					to_col += o_col
-			return moves
+			
+			return self.sliding_moves(row,col,self.ROOK_OFFSETS)
 	#queen move gen
 	def queen_moves (self,row,col):
-			moves = []
-			offsets = [(1, 0),(-1, 0),(0, 1),(0, -1),(1, 1),(1, -1),(-1, 1),(-1,-1)]
-
-			for o_row,o_col in offsets:
-				to_row = row + o_row
-				to_col = col + o_col
-
-				while 0 <= to_row < 8 and 0<= to_col <8:
-					piece_colour = self.get_piece_colour(to_row,to_col)
-					if piece_colour == self.who_to_move:
-						break
-					elif piece_colour == self.EMPTY:
-						moves.append(Move(row,col,to_row,to_col))
-					else:
-						moves.append(Move(row,col,to_row,to_col))
-						break
-					to_row += o_row
-					to_col += o_col
-			return moves
-	
+			return self.sliding_moves(row,col,self.KING_OFFSETS)
 	#white pawn move gen
 	def add_pawn_moves(self,row,col,to_row,to_col,last_row,colour):
 		moves = []

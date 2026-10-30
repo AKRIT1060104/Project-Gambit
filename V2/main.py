@@ -2,14 +2,13 @@ import pygame
 import sys
 from pathlib import Path
 from board import Chessboard
-from engine import *
+from engine import Engine
 import threading
 
 ENGINE_COLOUR = "BLACK"
-ENGINE_DEPTH = 3
-
+ENGINE_DEPTH = 5
 pygame.init()
-SQUARE_SIZE = 130
+SQUARE_SIZE = 80
 BOARD_SIZE = SQUARE_SIZE * 8
 screen = pygame.display.set_mode((BOARD_SIZE,BOARD_SIZE))
 pygame.display.set_caption("PROJECT GAMBIT")
@@ -33,25 +32,14 @@ for piece in PIECES:
 	
 	images[piece] = pygame.transform.smoothscale(image,(SQUARE_SIZE-10,SQUARE_SIZE-10))
 
-
+engine = Engine(depth=ENGINE_DEPTH)
 game = Chessboard()
 
 #multithreading for engine
 engine_status = {"thinking":False, "result": None, "error": None}
-
-def copy_position(game):
-	new_game = Chessboard()
-	new_game.board = [] 
-	for row in game.board:
-		new_game.board.append(row.copy())
-	new_game.who_to_move = game.who_to_move
-	new_game.castling_rights = game.castling_rights.copy()
-	new_game.en_passant_square = game.en_passant_square
-	return new_game
-
 def engine_worker(position_copy):
 	try:
-		engine_status["result"] = best_move(position_copy,ENGINE_DEPTH)
+		engine_status["result"] = engine.get_best_move(position_copy,ENGINE_DEPTH)
 	except Exception as e:
 		engine_status["error"] = e
 	finally:
@@ -153,6 +141,7 @@ while running:
 						piece_moves = piece_moves_gen(row,col)
 						destinations = destination_squares(piece_moves)
 						print(f"selectedsquare {selected_square}, legal moves{destinations}")
+						
 				else:
 						chosen_move = None
 						for move in piece_moves:
@@ -181,6 +170,7 @@ while running:
 		# apply a finished result first
 		if engine_status["result"] != None:
 			game.make_move(engine_status["result"])
+			print(f"nodes searched {engine.nodes_searched}")
 			last_move   = engine_status["result"]
 			game_status = game.game_status()
 			engine_status["result"] = None
@@ -193,7 +183,7 @@ while running:
 # start a search if needed
 		if game.who_to_move == ENGINE_COLOUR and game_status not in ("checkmate", "stalemate") and  not engine_status["thinking"] and engine_status["result"] == None:
 			engine_status["thinking"] = True
-			position_copy = copy_position(game)
+			position_copy = game.clone()
 			#start a daemon thread running engine_worker(position_copy
 			thread = threading.Thread(target=engine_worker,args=(position_copy,),daemon=True)
 			thread.start()

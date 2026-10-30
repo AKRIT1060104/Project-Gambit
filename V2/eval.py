@@ -65,12 +65,14 @@ PST = {
 	],
 }
 # returns a score from WHITE point of view
+#takes the Chessboard class as input
 def evaluate(game):
 	score = 0
-	for row,row_element in enumerate(game):
+	board = game.board
+	for row,row_element in enumerate(board):
 		for col,each_element in enumerate(row_element):
 			
-			if game[row][col] == "O":
+			if each_element == game.EMPTY:
 				continue
 			
 			Type   = each_element[1]
@@ -83,8 +85,11 @@ def evaluate(game):
             # mirror the rows so Black reads the table upside down
 	return score
 
-if __name__ == "__main__":
+#gives relative score based on who to move takes the chessboard class as input
+def evaluate_relative(game):
+	score = evaluate(game)
 	
-	game = Chessboard()
-	game.load_fen("rnbqkb1r/ppp2ppp/3p1P2/8/3p4/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 5")
-	print(evaluate(game.board))
+	if game.who_to_move == "WHITE":
+		return score
+	else:
+		return -score
