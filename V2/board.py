@@ -33,6 +33,9 @@ class Chessboard:
 		
 		#castling rights/flags
 		self.castling_rights = {"WK": True, "WQ": True, "BK": True,"BQ": True}
+		
+		
+		
 		#W/B is the colour and K/Q is kingside or queen side
 		
 		#en passant flags
@@ -62,6 +65,9 @@ class Chessboard:
 		for _ in range(8):
 			self.board[1][_] = self.BLACK_PAWN
 			
+		#halfmove clock
+		self.halfmove_clock = 0
+		self.state_history = [self.get_state_key()]
 	#Helper methods
 	
 				
@@ -104,6 +110,9 @@ class Chessboard:
 		
 		self.who_to_move = "WHITE"
 		self.move_history =[]
+		
+		self.halfmove_clock = 0
+		self.state_history = []
 		for i,j in enumerate(self.board):
 			for k,l in enumerate(j):
 				self.board[i][k] = self.EMPTY
@@ -163,6 +172,10 @@ class Chessboard:
 			col = ord(enpassant[0]) - ord("a")
 			row = 8 - int(enpassant[1])
 			self.en_passant_square = (row,col)
+			
+		#halfmove clock
+		self.halfmove_clock = int(parts[4]) if len(parts)>4 else 0
+		self.state_history = [self.get_state_key()]
 		
 	def divide_perft(self,depth):
 		results = {}
@@ -269,14 +282,26 @@ class Chessboard:
 		return self.square_attacked(king_row,king_col,enemy)
 	
 	def game_status(self):
+		
 		moves = self.legal_moves()
+		in_check = self.is_in_check(self.who_to_move)
+		if not moves:
+			if in_check:
+				return "checkmate"
+			else:
+				return "stalemate"
+		if self.halfmove_clock >= 100:
+			return "draw_50_moves"
+		if self.repition(count=3):
+			return "draw_by_repition"
+		if self.is_insufficient_material():
+			return "draw_insufficient_material"
 		if moves:
-			if self.is_in_check(self.who_to_move):
+			if in_check:
 				return "check"
-			return "playing"
-		if self.is_in_check(self.who_to_move):
-			return "checkmate"
-		return "stalemate"
+			return "playing" 
+
+		
 	def clone(self):
 		new_game = Chessboard.__new__(Chessboard)
 		new_game.board = [row.copy() for row in self.board]
@@ -286,6 +311,8 @@ class Chessboard:
 		new_game.en_passant_square = self.en_passant_square
 		new_game.white_king_square = self.white_king_square
 		new_game.black_king_square = self.black_king_square
+		new_game.halfmove_clock = self.halfmove_clock
+		new_game.state_history = self.state_history.copy()
 		
 		return new_game
 		
@@ -309,6 +336,71 @@ class Chessboard:
 					to_row += o_row
 					to_col += o_col
 			return moves
+			
+	def get_state_key(self):
+		board_tuple = tuple(tuple(row) for row in self.board)
+		rights_tuple = (
+			self.castling_rights["WK"],self.castling_rights["WQ"],
+			self.castling_rights["BK"],self.castling_rights["BQ"],
+		)
+		
+		return (board_tuple, self.who_to_move, rights_tuple, self.en_passant_square)
+		
+	
+	def repition(self,count=3):
+		current_key = self.state_history[-1]
+		if len(self.state_history) < count:
+			return False
+		start_idx = max(0, len(self.state_history)- 1 - self.halfmove_clock)
+		hits = 0
+		for i in range(len(self.state_history)-1,start_idx -1 , -2):
+			if self.state_history[i] == current_key:
+				hits += 1
+				if hits >= count:
+					return True
+		return False
+		
+		
+	def is_insufficient_material(self):
+		bishops = []
+		knights = {"w": 0, "b": 0}
+
+		for r in range(8):
+			for c in range(8):
+				p = self.board[r][c]
+
+				if p == self.EMPTY or p[1] == "K":
+					continue
+
+				if p[1] in ("P", "R", "Q"):
+					return False
+
+				if p[1] == "B":
+					bishops.append((r + c) % 2)
+
+				elif p[1] == "N":
+					knights[p[0]] += 1
+
+		total_knights = knights["w"] + knights["b"]
+
+		# Bare kings or just one minor piece
+		if total_knights + len(bishops) <= 1:
+			return True
+
+		# All bishops occupy the same square colour,
+		# with no knights present.
+		if total_knights == 0 and len(set(bishops)) == 1:
+			return True
+
+		# Two knights belonging to the same side
+		# against a bare king.h
+		if (total_knights == 2 and
+			len(bishops) == 0 and
+			2 in knights.values()):
+			return True
+
+		return False
+		
 				
 		
 		
@@ -321,6 +413,7 @@ class Chessboard:
 			#special moves saves 
 			move.saved_rights = self.castling_rights.copy()
 			move.saved_enpassant = self.en_passant_square
+			move.saved_halfmove_clock = self.halfmove_clock
 			
 			if target_piece == self.EMPTY or [move.to_row,move.to_col] == [move.from_row,move.from_col]:
 				return False
@@ -328,6 +421,15 @@ class Chessboard:
 				return False
 			else:
 				self.move_history.append(move)
+				#halfmove counter for draw
+					
+				is_capture = (self.board[move.to_row][move.to_col] != self.EMPTY or move.is_enpassant)
+				
+				if target_piece[1] == "P" or is_capture:
+						self.halfmove_clock = 0
+				else:
+						self.halfmove_clock += 1
+						
 				move.captured_piece = self.board[move.to_row][move.to_col]
 				#enpassant capture
 				if move.is_enpassant:
@@ -335,10 +437,14 @@ class Chessboard:
 					self.board[move.from_row][move.to_col] = self.EMPTY
 					self.board[move.from_row][move.from_col] = self.EMPTY
 				else:
+					
+					
+						
 					move.captured_piece = self.board[move.to_row][move.to_col]
 				move.moving_piece = target_piece
 				self.board[move.to_row][move.to_col] = target_piece
 				self.board[move.from_row][move.from_col] = self.EMPTY
+				
 				
 				#priomotion 
 				if move.promotion != None:
@@ -382,6 +488,8 @@ class Chessboard:
 					self.who_to_move = 'BLACK'
 				else:
 					self.who_to_move = "WHITE"
+					
+				self.state_history.append(self.get_state_key())
 				return True
 				
 	def undo_move(self):
@@ -422,6 +530,9 @@ class Chessboard:
 					self.who_to_move = "BLACK"
 				else:
 					self.who_to_move = "WHITE"
+					
+				self.halfmove_clock = history.saved_halfmove_clock
+				self.state_history.pop()
 				return True
 			
 	
@@ -615,6 +726,7 @@ class Move:
 			self.saved_rights = None
 			self.saved_enpassant = None
 			self.is_enpassant = is_enpassant
+			self.saved_halfmove_clock = 0
 	def __repr__(self):
 	           return (f"Move(({self.from_row}, {self.from_col})"
 	           f" -> ({self.to_row}, {self.to_col},{self.promotion}))"
