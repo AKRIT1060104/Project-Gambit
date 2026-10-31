@@ -292,7 +292,7 @@ class Chessboard:
 				return "stalemate"
 		if self.halfmove_clock >= 100:
 			return "draw_50_moves"
-		if self.repition(count=3):
+		if self.repitition(count=3):
 			return "draw_by_repition"
 		if self.is_insufficient_material():
 			return "draw_insufficient_material"
@@ -347,7 +347,7 @@ class Chessboard:
 		return (board_tuple, self.who_to_move, rights_tuple, self.en_passant_square)
 		
 	
-	def repition(self,count=3):
+	def repitition(self,count=3):
 		current_key = self.state_history[-1]
 		if len(self.state_history) < count:
 			return False

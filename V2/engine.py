@@ -11,6 +11,9 @@ class Engine:
 		self.default_depth = depth
 		self.nodes_searched = 0
 		
+		self.contempt = 25
+		self.root_colour = "BLACK"
+		
 		#for future purpose
 		self.killer_moves = [[None , None] for _ in range(64)]
 		self.transposition_table = {}
@@ -36,10 +39,19 @@ class Engine:
 			score += 8000 + PIECE_VALUE[move.promotion[1]]
 			
 		return score
+		
+	def get_draw_score(self,game):
+		return -self.contempt if self.root_colour == game.who_to_move else self.contempt
+		
 			
 	def nega_Max(self,game,depth,alpha,beta,ply):
 		
 		self.nodes_searched += 1
+		
+		if ply > 0:
+			if game.halfmove_clock >= 100 or game.repitition(count=2) or game.is_insufficient_material():
+				return self.get_draw_score(game)
+			
 		
 		if depth == 0:
 			return evaluate_relative(game)
@@ -49,7 +61,7 @@ class Engine:
 		if not moves:
 			if game.is_in_check(game.who_to_move):
 				return -MATE + ply #checkmate closer ply = faster mate
-			return 0 #stalemate
+			return self.get_draw_score(game) #stalemate
 		
 		#sorts the moves in decending order of their score		
 		moves.sort(key=lambda m: self.score_moves(game,m,ply), reverse=True)
@@ -77,6 +89,9 @@ class Engine:
 			depth = self.default_depth
 		
 		self.nodes_searched = 0
+		self.root_colour = game.who_to_move
+		
+		
 		
 		legal = game.legal_moves()
 		
