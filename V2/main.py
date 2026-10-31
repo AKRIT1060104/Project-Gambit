@@ -4,19 +4,24 @@ from pathlib import Path
 from board import Chessboard
 from engine import Engine
 import threading
+import ctypes
+try:
+    ctypes.windll.user32.SetProcessDPIAware()
+except Exception:
+    pass
 
 ENGINE_COLOUR = "BLACK"
-ENGINE_DEPTH = 3
+ENGINE_DEPTH = 5
 pygame.init()
-SQUARE_SIZE = 130
+SQUARE_SIZE = 120
 BOARD_SIZE = SQUARE_SIZE * 8
 screen = pygame.display.set_mode((BOARD_SIZE,BOARD_SIZE))
 pygame.display.set_caption("PROJECT GAMBIT")
 
-LIGHT = (240, 217, 181)
-DARK = (181, 136, 99)
-
-ASSET_DIR = Path(__file__).resolve().parent / "chessAssets"
+ASSET_DIR = Path(__file__).resolve().parent / "chessAssets" / "default"
+BOARD_PATH = Path(__file__).resolve().parent / "chessAssets" / "skin_silpur" / "board" / "board-white.png"
+board_image = pygame.image.load(str(BOARD_PATH)).convert()
+board_image = pygame.transform.smoothscale(board_image, (BOARD_SIZE, BOARD_SIZE))
 
 #----load images------
 PIECES = [
@@ -24,12 +29,9 @@ PIECES = [
     "bK", "bQ", "bR", "bB", "bN", "bP",
 ]
 images = {}
-
 for piece in PIECES:
 	path = str(ASSET_DIR / f"{piece}.png")
 	image = pygame.image.load(str(path)).convert_alpha()
-	
-	
 	images[piece] = pygame.transform.smoothscale(image,(SQUARE_SIZE-10,SQUARE_SIZE-10))
 
 engine = Engine(depth=ENGINE_DEPTH)
@@ -48,14 +50,12 @@ def engine_worker(position_copy):
 
 def draw_board():
 	checked_king = king_check_square()
+	screen.blit(board_image, (0, 0)) 
 	for row in range(8):
 		for col in range(8):
-			colour = (LIGHT if (row+col)%2 == 0
-			else DARK)
 			x = col * SQUARE_SIZE
 			y = row * SQUARE_SIZE
 			
-			pygame.draw.rect(screen,colour,(x,y,SQUARE_SIZE,SQUARE_SIZE))
 			#draw last move highlight
 			if last_move != None:
 				start = (last_move.from_row,last_move.from_col)
@@ -85,8 +85,7 @@ def piece_moves_gen(row,col):
 def destination_squares(piece_moves):
 	return list({(move.to_row, move.to_col) for move in piece_moves})
 def draw_move_indicator():
-	if not destinations:
-		return indicator_surface.fill((0,0,0,0))
+	indicator_surface.fill((0,0,0,0))
 	for row,col in destinations:
 		x = col * SQUARE_SIZE + SQUARE_SIZE//2
 		y = row * SQUARE_SIZE + SQUARE_SIZE//2

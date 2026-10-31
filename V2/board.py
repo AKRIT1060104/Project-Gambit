@@ -470,50 +470,48 @@ class Chessboard:
 			self.undo_move()
 		return legal_moves
 
-								
-																								
-	#knight move gen							
+	#knight move gen
 	def knight_moves(self,row,col):
 		moves = []
 		offsets = [(2, 1),(2, -1),(-2, 1),(-2, -1),(1, 2),(1, -2),(-1, 2),(-1,-2)]
-	
+
 		for o_row, o_col in offsets:
 			to_row = row + o_row
 			to_col = col + o_col
-		
+
 			if 0 <= to_row < 8 and 0<= to_col <8:
 				if self.get_piece_colour(to_row,to_col) != self.who_to_move:
-					
-					moves.append(Move(row,col,to_row,to_col))	
-					
-		return moves			
 
-#king move gen 
+					moves.append(Move(row,col,to_row,to_col))
+
+		return moves
+
+	#king move gen
 	def king_moves(self,row,col):
 		moves = []
 		offsets = [(1, 0),(-1, 0),(0, 1),(0, -1),(1, 1),(1, -1),(-1, 1),(-1,-1)]
-	
+
 		for o_row, o_col in offsets:
 			to_row = row + o_row
 			to_col = col + o_col
-		
+
 			if 0 <= to_row < 8 and 0<= to_col <8:
 				if self.get_piece_colour(to_row,to_col) != self.who_to_move:
-					
-					moves.append(Move(row,col,to_row,to_col))	
+
+					moves.append(Move(row,col,to_row,to_col))
 		moves.extend(self.castle_moves(row,col))
 		return moves
 
 	#bishop move gen
 	def bishop_moves (self,row,col):
-			return self.sliding_moves(row,col,self.BISHOP_OFFSETS)
+		return self.sliding_moves(row,col,self.BISHOP_OFFSETS)
 	#rook move gen
 	def rook_moves (self,row,col):
-			
-			return self.sliding_moves(row,col,self.ROOK_OFFSETS)
+
+		return self.sliding_moves(row,col,self.ROOK_OFFSETS)
 	#queen move gen
 	def queen_moves (self,row,col):
-			return self.sliding_moves(row,col,self.KING_OFFSETS)
+		return self.sliding_moves(row,col,self.KING_OFFSETS)
 	#white pawn move gen
 	def add_pawn_moves(self,row,col,to_row,to_col,last_row,colour):
 		moves = []
@@ -522,7 +520,7 @@ class Chessboard:
 				promotion_piece = colour[0].lower() + piece_letter
 				moves.append(Move(row,col,to_row,to_col,promotion=promotion_piece))
 		else:
-		 	moves.append(Move(row,col,to_row,to_col))
+			moves.append(Move(row,col,to_row,to_col))
 		return moves
 	
 	def pawn_moves(self,row,col):
