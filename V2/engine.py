@@ -3,7 +3,7 @@ import random
 
 #-----the search-------
 MATE = 100000
-INF = float("inf")
+INF = 10000000 #10 milli
 
 class Engine:
 	
@@ -102,7 +102,7 @@ class Engine:
 			elif score == best_score:
 				best_moves.append(move)
 				
-			alpha = max(alpha,best_score)
+			#alpha = max(alpha,best_score)
 			
 		#looks at captures in equal moves and picks those 
 		captures = [m for m in best_moves if game.board[m.to_row][m.to_col] != game.EMPTY or m.is_enpassant]

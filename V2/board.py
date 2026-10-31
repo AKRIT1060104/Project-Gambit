@@ -196,13 +196,6 @@ class Chessboard:
 			return self.white_king_square
 		return self.black_king_square
 					
-	#checks if a square is attacked and can my king move there
-	def is_attacked(self,square):
-		for move in self.pseudo_move_generator():
-			if (move.to_row ,move.to_col) == square:
-				return True
-		return False
-		
 		#checks if a square is attacked by a colour (works on empty squares too)
 	def square_attacked(self,row,col,by_colour):
 		knight_offsets = [(2, 1),(2, -1),(-2, 1),(-2, -1),(1, 2),(1, -2),(-1, 2),(-1,-2)]
@@ -288,7 +281,7 @@ class Chessboard:
 		new_game = Chessboard.__new__(Chessboard)
 		new_game.board = [row.copy() for row in self.board]
 		new_game.who_to_move = self.who_to_move
-		new_game.move_history = []
+		new_game.move_history = self.move_history.copy()
 		new_game.castling_rights = self.castling_rights.copy()
 		new_game.en_passant_square = self.en_passant_square
 		new_game.white_king_square = self.white_king_square
@@ -368,13 +361,7 @@ class Chessboard:
 						else: #queenside
 							self.board[row][0] = self.EMPTY
 							self.board[row][3] = target_piece_colour[0].lower()+"R"
-						
-							
-					
-					if target_piece_colour == "WHITE":
-						self.castling_rights.update(WK=False,WQ=False)
-					else:
-						self.castling_rights.update(BK=False,BQ=False)
+				
 				#each corner belongs to exactly one castling right
 				
 				for corner,right in self.CORNER_RIGHTS.items():
@@ -634,3 +621,7 @@ class Move:
 	           return (f"Move(({self.from_row}, {self.from_col})"
 	           f" -> ({self.to_row}, {self.to_col},{self.promotion}))"
 	           )
+	def __eq__(self,other):
+		if not isinstance(other,Move):
+			return False
+		return(self.from_row == other.from_row and self.from_col == other.from_col and self.to_row == other.to_row and self.to_col == other.to_col and self.promotion == other.promotion)

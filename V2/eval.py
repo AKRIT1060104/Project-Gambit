@@ -1,5 +1,3 @@
-from board import Chessboard
-
 PIECE_VALUE = {"P":100,"N":320,"B":330,"R":500,"Q":900,"K":0}
 #piece starter tablet
 PST = {

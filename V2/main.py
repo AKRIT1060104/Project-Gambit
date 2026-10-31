@@ -6,9 +6,9 @@ from engine import Engine
 import threading
 
 ENGINE_COLOUR = "BLACK"
-ENGINE_DEPTH = 5
+ENGINE_DEPTH = 3
 pygame.init()
-SQUARE_SIZE = 80
+SQUARE_SIZE = 130
 BOARD_SIZE = SQUARE_SIZE * 8
 screen = pygame.display.set_mode((BOARD_SIZE,BOARD_SIZE))
 pygame.display.set_caption("PROJECT GAMBIT")
@@ -83,21 +83,19 @@ def piece_moves_gen(row,col):
 	return piece_moves
 #takes piece moves and gives destination row col 
 def destination_squares(piece_moves):
-	destination = []
-	for move in piece_moves:
-		destination.append((move.to_row,move.to_col))
-	return destination
+	return list({(move.to_row, move.to_col) for move in piece_moves})
 def draw_move_indicator():
-	transparent_surface = pygame.Surface((BOARD_SIZE,BOARD_SIZE),pygame.SRCALPHA)
+	if not destinations:
+		return indicator_surface.fill((0,0,0,0))
 	for row,col in destinations:
 		x = col * SQUARE_SIZE + SQUARE_SIZE//2
 		y = row * SQUARE_SIZE + SQUARE_SIZE//2
 		
 		if game.get_piece(row,col) == game.EMPTY:
-			pygame.draw.circle(transparent_surface,(0,0,0,110),(x,y),20)
+			pygame.draw.circle(indicator_surface,(0,0,0,110),(x,y),20)
 		else:
-			pygame.draw.circle(transparent_surface,(0,0,0,110),(x,y),SQUARE_SIZE//2 - 5,6)
-	screen.blit(transparent_surface,(0,0))
+			pygame.draw.circle(indicator_surface,(0,0,0,110),(x,y),SQUARE_SIZE//2 - 5,6)
+	screen.blit(indicator_surface,(0,0))
 
 def king_check_square():
 	if game.is_in_check(game.who_to_move):
@@ -116,6 +114,7 @@ last_move_overlay.fill((255,230,0,85))
 check_overlay = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA)
 check_overlay.fill((220, 40, 40, 100))
 last_move = None
+indicator_surface = pygame.Surface((BOARD_SIZE, BOARD_SIZE), pygame.SRCALPHA)
 
 game_status = game.game_status()
 running = True
