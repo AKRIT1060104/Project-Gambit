@@ -11,7 +11,7 @@ except Exception:
     pass
 
 ENGINE_COLOUR = "BLACK"
-ENGINE_DEPTH = 5
+ENGINE_DEPTH = 4
 pygame.init()
 SQUARE_SIZE = 120
 BOARD_SIZE = SQUARE_SIZE * 8

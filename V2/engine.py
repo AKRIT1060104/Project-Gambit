@@ -43,6 +43,66 @@ class Engine:
 	def get_draw_score(self,game):
 		return -self.contempt if self.root_colour == game.who_to_move else self.contempt
 		
+	def quiescence(self,game,alpha,beta,ply,q_depth = 0):
+		
+		in_check = game.is_in_check(game.who_to_move)
+		side = game.who_to_move
+		self.nodes_searched += 1
+	
+		
+		if not in_check:
+			stand_pat = evaluate_relative(game)
+			
+			if stand_pat >= beta: #position too good for them to allow that move
+				return beta
+				
+			if stand_pat > alpha:
+				alpha = stand_pat
+				
+			if q_depth >= 4:
+				return alpha
+			
+			
+		
+		all_moves = game.pseudo_move_generator()
+		
+		if not in_check:
+			
+				moves = [
+        	m for m in all_moves
+        	if game.board[m.to_row][m.to_col] != game.EMPTY or m.is_enpassant or m.promotion is not None
+    	]
+		else:
+			moves = all_moves
+				
+		moves.sort(key=lambda m: self.score_moves(game, m), reverse=True)
+			
+			
+		legal_moves_found = False
+		
+		for move in moves:
+			game.make_move(move)
+			
+			if game.is_in_check(side):
+				game.undo_move()
+				continue
+				
+			legal_move_found = True
+			
+			score = -self.quiescence(game, -beta, -alpha, ply=ply+1,q_depth=q_depth + 1)
+			game.undo_move()
+			
+			
+			if score >= beta:
+				return beta
+			if score > alpha:
+				alpha = score
+				
+		if in_check and not legal_move_found:
+			return -MATE + ply
+			
+				
+		return alpha
 			
 	def nega_Max(self,game,depth,alpha,beta,ply):
 		
@@ -54,7 +114,7 @@ class Engine:
 			
 		
 		if depth == 0:
-			return evaluate_relative(game)
+			return self.quiescence(game,alpha,beta,ply)
 		
 		moves = game.legal_moves()
 		
