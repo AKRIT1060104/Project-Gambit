@@ -87,7 +87,7 @@ class Engine:
 				game.undo_move()
 				continue
 				
-			legal_move_found = True
+			legal_moves_found = True
 			
 			score = -self.quiescence(game, -beta, -alpha, ply=ply+1,q_depth=q_depth + 1)
 			game.undo_move()
@@ -98,7 +98,7 @@ class Engine:
 			if score > alpha:
 				alpha = score
 				
-		if in_check and not legal_move_found:
+		if in_check and not legal_moves_found:
 			return -MATE + ply
 			
 				

@@ -13,6 +13,7 @@ RUNS = 3
 
 def bench_perft():
     game = Chessboard()
+	
     start = time.perf_counter()
     nodes = game.perft(PERFT_DEPTH)
     elapsed = time.perf_counter() - start

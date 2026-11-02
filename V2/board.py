@@ -1,3 +1,6 @@
+from zobrist_hash import (Z_PIECE, Z_CASTLE, Z_EP, Z_SIDE, CASTLE_MASK,compute_hash, WK_BIT, WQ_BIT, BK_BIT, BQ_BIT)
+
+
 class Chessboard:
 	EMPTY = 'O'
 	
@@ -32,7 +35,7 @@ class Chessboard:
 		self.black_king_square = (0,4)
 		
 		#castling rights/flags
-		self.castling_rights = {"WK": True, "WQ": True, "BK": True,"BQ": True}
+		self.castling_rights = 15
 		
 		
 		
@@ -68,6 +71,9 @@ class Chessboard:
 		#halfmove clock
 		self.halfmove_clock = 0
 		self.state_history = [self.get_state_key()]
+		
+		self.hash = compute_hash(self)
+		self.state_history = [self.hash]
 	#Helper methods
 	
 				
@@ -105,7 +111,7 @@ class Chessboard:
 		print("\n","   a   b   c   d   e   f   g   h")
 	
 	def clear_board(self):
-		self.castling_rights.update(WK=False,WQ=False,BK=False,BQ=False)
+		self.castling_rights = 0
 		self.en_passant_square = None
 		
 		self.who_to_move = "WHITE"
@@ -158,13 +164,13 @@ class Chessboard:
 		#castling rights
 		for ch in castling:
 				if ch == "K":
-						self.castling_rights["WK"] = True
+						self.castling_rights |= WK_BIT
 				if ch == "k":
-						self.castling_rights["BK"] = True
+						self.castling_rights |= BK_BIT
 				if ch == "Q":
-						self.castling_rights["WQ"] = True
+						self.castling_rights |= WQ_BIT
 				if ch == "q":
-						self.castling_rights["BQ"] = True
+						self.castling_rights |= BQ_BIT
 		#enpassant
 		if enpassant == "-":
 			self.en_passant_square = None
@@ -175,7 +181,8 @@ class Chessboard:
 			
 		#halfmove clock
 		self.halfmove_clock = int(parts[4]) if len(parts)>4 else 0
-		self.state_history = [self.get_state_key()]
+		self.hash = compute_hash(self)
+		self.state_history = [self.hash]
 		
 	def divide_perft(self,depth):
 		results = {}
@@ -307,14 +314,25 @@ class Chessboard:
 		new_game.board = [row.copy() for row in self.board]
 		new_game.who_to_move = self.who_to_move
 		new_game.move_history = self.move_history.copy()
-		new_game.castling_rights = self.castling_rights.copy()
+		new_game.castling_rights = self.castling_rights
 		new_game.en_passant_square = self.en_passant_square
 		new_game.white_king_square = self.white_king_square
 		new_game.black_king_square = self.black_king_square
 		new_game.halfmove_clock = self.halfmove_clock
+		new_game.hash = self.hash
 		new_game.state_history = self.state_history.copy()
 		
+		
 		return new_game
+		
+	def hash_check(self, depth):
+		if depth == 0: return
+		for m in self.legal_moves():
+			self.make_move(m)
+			assert self.hash == compute_hash(self), m
+			self.hash_check(depth-1)
+			self.undo_move()
+		assert self.hash == compute_hash(self)
 		
 	def sliding_moves(self,row,col,offset):
 			moves = []
@@ -339,12 +357,8 @@ class Chessboard:
 			
 	def get_state_key(self):
 		board_tuple = tuple(tuple(row) for row in self.board)
-		rights_tuple = (
-			self.castling_rights["WK"],self.castling_rights["WQ"],
-			self.castling_rights["BK"],self.castling_rights["BQ"],
-		)
 		
-		return (board_tuple, self.who_to_move, rights_tuple, self.en_passant_square)
+		return (board_tuple, self.who_to_move, self.castling_rights, self.en_passant_square)
 		
 	
 	def repitition(self,count=3):
@@ -411,10 +425,10 @@ class Chessboard:
 			target_piece_colour = self.get_piece_colour(move.from_row,move.from_col)
 			
 			#special moves saves 
-			move.saved_rights = self.castling_rights.copy()
+			move.saved_rights = self.castling_rights
 			move.saved_enpassant = self.en_passant_square
 			move.saved_halfmove_clock = self.halfmove_clock
-			
+			move.saved_hash = self.hash
 			if target_piece == self.EMPTY or [move.to_row,move.to_col] == [move.from_row,move.from_col]:
 				return False
 			elif self.who_to_move != target_piece_colour:
@@ -452,12 +466,11 @@ class Chessboard:
 				
 				#castling
 				if target_piece[1] == "K":
+					#castling
 					if target_piece_colour == "WHITE":
 						self.white_king_square = (move.to_row,move.to_col)
-						self.castling_rights.update(WK=False,WQ=False)
 					else:
 						self.black_king_square = (move.to_row,move.to_col)
-						self.castling_rights.update(BK=False,BQ=False)
 					#Rook moves for castling
 					if move.is_castle:
 						row = move.from_row
@@ -468,11 +481,8 @@ class Chessboard:
 							self.board[row][0] = self.EMPTY
 							self.board[row][3] = target_piece_colour[0].lower()+"R"
 				
-				#each corner belongs to exactly one castling right
-				
-				for corner,right in self.CORNER_RIGHTS.items():
-					if (move.from_row,move.from_col) == corner or (move.to_row,move.to_col) == corner:
-						self.castling_rights[right] = False
+				#castling rights update
+				self.castling_rights &= CASTLE_MASK[move.from_row][move.from_col] & CASTLE_MASK[move.to_row][move.to_col]
 						
 						
 				#enpassant
@@ -489,7 +499,25 @@ class Chessboard:
 				else:
 					self.who_to_move = "WHITE"
 					
-				self.state_history.append(self.get_state_key())
+				h = move.saved_hash ^ Z_SIDE
+				h ^= Z_CASTLE[move.saved_rights] ^ Z_CASTLE[self.castling_rights]
+				if move.saved_enpassant is not None:
+					h ^= Z_EP[move.saved_enpassant[0]][move.saved_enpassant[1]]
+				if self.en_passant_square is not None:
+					h ^= Z_EP[self.en_passant_square[0]][self.en_passant_square[1]]
+				h ^= Z_PIECE[target_piece][move.from_row][move.from_col]
+				placed = move.promotion if move.promotion else target_piece
+				h ^= Z_PIECE[placed][move.to_row][move.to_col]
+				if move.is_enpassant:
+					h ^= Z_PIECE[move.captured_piece][move.from_row][move.to_col]
+				elif move.captured_piece != self.EMPTY:
+					h ^= Z_PIECE[move.captured_piece][move.to_row][move.to_col]
+				if move.is_castle:
+					rook = target_piece_colour[0].lower() + "R"
+					r_from, r_to = (7, 5) if move.to_col == 6 else (0, 3)
+					h ^= Z_PIECE[rook][move.from_row][r_from] ^ Z_PIECE[rook][move.from_row][r_to]
+				self.hash = h
+				self.state_history.append(h)
 				return True
 				
 	def undo_move(self):
@@ -502,6 +530,7 @@ class Chessboard:
 				self.board[history.to_row][history.to_col] = history.captured_piece
 				self.move_history.pop()
 				
+				
 				if history.moving_piece == self.WHITE_KING:
 					self.white_king_square = (history.from_row, history.from_col)
 				elif history.moving_piece == self.BLACK_KING:
@@ -511,7 +540,7 @@ class Chessboard:
 				#undo special moves flags
 				self.castling_rights = history.saved_rights
 				self.en_passant_square = history.saved_enpassant
-				
+				self.hash = history.saved_hash
 				if history.is_castle:
 						row = history.from_row
 						if history.to_col == 6: #kingside
@@ -682,23 +711,24 @@ class Chessboard:
 		if colour == "WHITE":
 			enemy = "BLACK"
 			home_row = 7
-			prefix = "W"
 			rook = "wR"
+			k_bit = WK_BIT
+			q_bit = WQ_BIT
 		else:
 			enemy = "WHITE"
 			home_row = 0
-			prefix = "B"
 			rook = "bR"
+			k_bit = BK_BIT
+			q_bit = BQ_BIT
 		if (row,col) != (home_row,4): return moves
 		if self.square_attacked(home_row,4,enemy): return moves
-		
 		# one entry per side. Each says:
-   	 # which right, where the rook starts, which columns must be empty,
-    	# which columns the king passes or lands on (must be safe), king's target column
-		options = [(prefix + "K", 7 , [5, 6], [5, 6], 6),
-						   (prefix + "Q", 0 , [1, 2, 3],[3, 2], 2)]
+		# which right (bit), where the rook starts, which columns must be empty,
+		# which columns the king passes or lands on (must be safe), king's target column
+		options = [(k_bit, 7, [5, 6], [5, 6], 6),
+				   (q_bit, 0, [1, 2, 3], [3, 2], 2)]
 		for (right,rook_col,empty_col,safe_col,king_to) in options:
-				if self.castling_rights[right] == False: continue
+				if not (self.castling_rights & right): continue
 				if self.board[home_row][rook_col] != rook: continue
 				if any(self.board[home_row][c] != self.EMPTY for c in empty_col): continue
 				if any(self.square_attacked(home_row,c,enemy) for c in safe_col): continue
@@ -727,6 +757,7 @@ class Move:
 			self.saved_enpassant = None
 			self.is_enpassant = is_enpassant
 			self.saved_halfmove_clock = 0
+			self.saved_hash = 0
 	def __repr__(self):
 	           return (f"Move(({self.from_row}, {self.from_col})"
 	           f" -> ({self.to_row}, {self.to_col},{self.promotion}))"
