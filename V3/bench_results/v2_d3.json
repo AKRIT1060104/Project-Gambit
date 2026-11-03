@@ -1,0 +1,62 @@
+{
+ "label": "v2_d3",
+ "depth": 3,
+ "rows": [
+  {
+   "name": "startpos",
+   "nodes": 2071,
+   "time": 0.05861684598494321,
+   "move": "b1c3"
+  },
+  {
+   "name": "kiwipete",
+   "nodes": 14599,
+   "time": 0.8525338069885038,
+   "move": "e2a6"
+  },
+  {
+   "name": "pos3",
+   "nodes": 2279,
+   "time": 0.08021626900881529,
+   "move": "b4f4"
+  },
+  {
+   "name": "pos4",
+   "nodes": 5883,
+   "time": 0.37190230697160587,
+   "move": "c4c5"
+  },
+  {
+   "name": "pos5",
+   "nodes": 4453,
+   "time": 0.13588146097026765,
+   "move": "d7c8q"
+  },
+  {
+   "name": "pos6",
+   "nodes": 16742,
+   "time": 0.8335756920278072,
+   "move": "c3d5"
+  },
+  {
+   "name": "italian",
+   "nodes": 8726,
+   "time": 0.38596019201213494,
+   "move": "b1c3"
+  },
+  {
+   "name": "kp_end",
+   "nodes": 464,
+   "time": 0.013331345980986953,
+   "move": "c2c1"
+  },
+  {
+   "name": "rook_end",
+   "nodes": 1087,
+   "time": 0.032276345998980105,
+   "move": "e3f2"
+  }
+ ],
+ "nodes": 56304,
+ "time": 2.764294265944045
+}

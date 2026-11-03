@@ -1,0 +1,62 @@
+{
+ "label": "inc_eval",
+ "depth": 3,
+ "rows": [
+  {
+   "name": "startpos",
+   "nodes": 2071,
+   "time": 0.07466699997894466,
+   "move": "b1c3"
+  },
+  {
+   "name": "kiwipete",
+   "nodes": 14599,
+   "time": 1.080033806967549,
+   "move": "e2a6"
+  },
+  {
+   "name": "pos3",
+   "nodes": 2279,
+   "time": 0.11064130801241845,
+   "move": "b4f4"
+  },
+  {
+   "name": "pos4",
+   "nodes": 5883,
+   "time": 0.47697469196282327,
+   "move": "c4c5"
+  },
+  {
+   "name": "pos5",
+   "nodes": 4453,
+   "time": 0.18468200002098456,
+   "move": "d7c8q"
+  },
+  {
+   "name": "pos6",
+   "nodes": 16742,
+   "time": 1.0296935369842686,
+   "move": "c3d5"
+  },
+  {
+   "name": "italian",
+   "nodes": 8726,
+   "time": 0.49259573000017554,
+   "move": "b1c3"
+  },
+  {
+   "name": "kp_end",
+   "nodes": 464,
+   "time": 0.018402346002403647,
+   "move": "c2c1"
+  },
+  {
+   "name": "rook_end",
+   "nodes": 1087,
+   "time": 0.044767499959561974,
+   "move": "e3f2"
+  }
+ ],
+ "nodes": 56304,
+ "time": 3.5124579198891297
+}
