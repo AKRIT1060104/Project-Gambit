@@ -125,7 +125,7 @@ while running:
 		
 		for events in events_list:
 			if events.type == pygame.MOUSEBUTTONDOWN:
-				if game_status in ("checkmate","stalemate") or game.who_to_move == ENGINE_COLOUR :
+				if game_status in ("checkmate","stalemate","draw_by_repition","draw_50_moves","draw_insufficient_material") or game.who_to_move == ENGINE_COLOUR :
 					continue
 				
 				mouse_x,mouse_y = events.pos

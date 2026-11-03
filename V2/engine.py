@@ -47,7 +47,11 @@ class Engine:
 		
 		in_check = game.is_in_check(game.who_to_move)
 		side = game.who_to_move
+		enemy = "WHITE" if side == "BLACK" else "BLACK"
 		self.nodes_searched += 1
+		if q_depth >= 12:
+				return alpha
+		
 	
 		
 		if not in_check:
@@ -59,34 +63,34 @@ class Engine:
 			if stand_pat > alpha:
 				alpha = stand_pat
 				
-			if q_depth >= 4:
-				return alpha
-			
-			
-		
-		all_moves = game.pseudo_move_generator()
-		
-		if not in_check:
-			
-				moves = [
-        	m for m in all_moves
-        	if game.board[m.to_row][m.to_col] != game.EMPTY or m.is_enpassant or m.promotion is not None
-    	]
-		else:
-			moves = all_moves
 				
-		moves.sort(key=lambda m: self.score_moves(game, m), reverse=True)
-			
-			
 		legal_moves_found = False
 		
+		if in_check:
+			moves = game.pseudo_move_generator()
+		else:
+			moves = game.capture_moves()
+		
+		moves.sort(key=lambda m: self.score_moves(game,m,ply), reverse=True)
+		kr, kc = game.find_king(side)
 		for move in moves:
+			if not in_check and move.promotion is None:
+				victim = game.board[move.to_row][move.to_col]
+				gain = PIECE_VALUE[victim[1]] if victim != game.EMPTY else 100
+				if stand_pat + gain + 200 < alpha:
+					continue
+					
+			fr,fc = move.from_row, move.from_col
+			is_king_move = (fr, fc) == (kr, kc)
+			aligned = (fr == kr) or (fc == kc) or (abs(fr - kr) == abs(fc - kc))
+			needs_test = in_check or is_king_move or aligned or move.is_enpassant
 			game.make_move(move)
-			
-			if game.is_in_check(side):
-				game.undo_move()
-				continue
-				
+			if needs_test:
+				kr2, kc2 = game.find_king(side)      # moved if it's a king move
+				if game.square_attacked(kr2, kc2, enemy):
+					game.undo_move()
+					
+					continue	
 			legal_moves_found = True
 			
 			score = -self.quiescence(game, -beta, -alpha, ply=ply+1,q_depth=q_depth + 1)
@@ -112,26 +116,37 @@ class Engine:
 			if game.halfmove_clock >= 100 or game.repitition(count=2) or game.is_insufficient_material():
 				return self.get_draw_score(game)
 			
-		
+		# keep searchibg if in check
+		in_check = game.is_in_check(game.who_to_move)
+		side = game.who_to_move
+		enemy = "WHITE" if side == "BLACK" else "BLACK"
+		if in_check and ply < 12:
+			depth += 1
 		if depth == 0:
-			return self.quiescence(game,alpha,beta,ply)
+			return self.quiescence(game, alpha, beta, ply)
 		
-		moves = game.legal_moves()
-		
-		if not moves:
-			if game.is_in_check(game.who_to_move):
-				return -MATE + ply #checkmate closer ply = faster mate
-			return self.get_draw_score(game) #stalemate
-		
+		moves = game.pseudo_move_generator()
 		#sorts the moves in decending order of their score		
 		moves.sort(key=lambda m: self.score_moves(game,m,ply), reverse=True)
 		
+		legal_count = 0
 		best_score = -INF
 		
+		
+		kr ,kc = game.find_king(side)
 		for move in moves:
+			fr,fc = move.from_row, move.from_col
+			is_king_move = (fr, fc) == (kr, kc)
+			aligned = (fr == kr) or (fc == kc) or (abs(fr - kr) == abs(fc - kc))
+			needs_test = in_check or is_king_move or aligned or move.is_enpassant
 			game.make_move(move)
-			
-			#because negamax works on the principle that score(a) = -score(b) so after one move it should flip to the opponent side so the negative sign
+			if needs_test:
+				kr2, kc2 = game.find_king(side)      # moved if it's a king move
+				if game.square_attacked(kr2, kc2, enemy):
+					game.undo_move()
+					
+					continue	
+			legal_count += 1
 			score = -self.nega_Max(game,depth-1,-beta , -alpha , ply+1)
 			game.undo_move()
 			if score > best_score:
@@ -140,6 +155,12 @@ class Engine:
 				alpha = score
 			if alpha >= beta:
 				break
+		if legal_count == 0:
+			if in_check:
+				return -MATE + ply #checkmate closer ply = faster mate
+			return self.get_draw_score(game) #stalemate
+				#because negamax works on the principle that score(a) = -score(b) so after one move it should flip to the opponent side so the negative sign
+			
 			
 		return best_score
 		
@@ -165,6 +186,7 @@ class Engine:
 		beta = INF
 		
 		for move in legal:
+			
 			game.make_move(move)
 			alpha = best_score -1
 			score = -self.nega_Max(game,depth - 1 , -beta, -alpha , ply=1)

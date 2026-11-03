@@ -65,29 +65,33 @@ PST = {
 # returns a score from WHITE point of view
 #takes the Chessboard class as input
 def evaluate(game):
-	score = 0
-	board = game.board
-	for row,row_element in enumerate(board):
-		for col,each_element in enumerate(row_element):
-			
-			if each_element == game.EMPTY:
-				continue
-			
-			Type   = each_element[1]
-			colour = each_element[0]
-			
-			if colour == "w":
-				score += PIECE_VALUE[Type] + PST[Type][row][col]
-			else:
-				score -= PIECE_VALUE[Type] + PST[Type][7 - row][col]
-            # mirror the rows so Black reads the table upside down
-	return score
-
+    score = 0
+    board = game.board
+    empty = game.EMPTY
+    for r in range(8):
+        row = board[r]
+        for c in range(8):
+            piece = row[c]
+            if piece != empty:
+                score += PSQT[piece][r][c]
+    return score
+PSQT = {}
+for colour_prefix in ('w','b'):
+	for piece_type, val in PIECE_VALUE.items():
+		piece_code = colour_prefix + piece_type
+		table = [[0] * 8 for _ in range(8)]
+		for r in range(8):
+			for c in range(8):
+				if colour_prefix == "w":
+					table[r][c] = val + PST[piece_type][r][c]
+				else:
+					table[r][c] = -(val + PST[piece_type][7-r][c])
+				PSQT[piece_code] = table
+					
+				
+				
+				
 #gives relative score based on who to move takes the chessboard class as input
 def evaluate_relative(game):
-	score = evaluate(game)
-	
-	if game.who_to_move == "WHITE":
-		return score
-	else:
-		return -score
+	score = game.eval_score
+	return score if game.who_to_move == "WHITE" else -score

@@ -1,4 +1,6 @@
 from zobrist_hash import (Z_PIECE, Z_CASTLE, Z_EP, Z_SIDE, CASTLE_MASK,compute_hash, WK_BIT, WQ_BIT, BK_BIT, BQ_BIT)
+from tables import KNIGHT_TARGETS, KING_TARGETS, ROOK_RAYS, BISHOP_RAYS, QUEEN_RAYS,PAWN_ATTACKER
+from eval import PSQT,evaluate
 
 
 class Chessboard:
@@ -73,21 +75,17 @@ class Chessboard:
 		self.state_history = [self.get_state_key()]
 		
 		self.hash = compute_hash(self)
+		self.eval_score = evaluate(self)
 		self.state_history = [self.hash]
 	#Helper methods
 	
 				
 				
-	def get_piece_colour(self,row,column):
-			piece_colour = self.EMPTY
-			if self.board[row][column][0] == "w":
-				piece_colour = "WHITE"
-			
-			elif self.board[row][column][0] == "b":
-				piece_colour = "BLACK"
-			else:
-				pass
-			return piece_colour
+	def get_piece_colour(self, row, column):
+		p = self.board[row][column]
+		if p == self.EMPTY:
+			return self.EMPTY
+		return "WHITE" if p[0] == "w" else "BLACK"
 	def get_piece(self,row,column):
 			piece_type = None
 			if self.board[row][column][0] == self.EMPTY:
@@ -118,6 +116,7 @@ class Chessboard:
 		self.move_history =[]
 		
 		self.halfmove_clock = 0
+		self.eval_score = 0
 		self.state_history = []
 		for i,j in enumerate(self.board):
 			for k,l in enumerate(j):
@@ -182,6 +181,7 @@ class Chessboard:
 		#halfmove clock
 		self.halfmove_clock = int(parts[4]) if len(parts)>4 else 0
 		self.hash = compute_hash(self)
+		self.eval_score = evaluate(self)
 		self.state_history = [self.hash]
 		
 	def divide_perft(self,depth):
@@ -218,58 +218,51 @@ class Chessboard:
 					
 		#checks if a square is attacked by a colour (works on empty squares too)
 	def square_attacked(self,row,col,by_colour):
-		knight_offsets = [(2, 1),(2, -1),(-2, 1),(-2, -1),(1, 2),(1, -2),(-1, 2),(-1,-2)]
-		king_offsets = [(1, 0),(-1, 0),(0, 1),(0, -1),(1, 1),(1, -1),(-1, 1),(-1,-1)]
-		bishop_offsets = [(1, 1),(1, -1),(-1, 1),(-1,-1)]
-		rook_offsets = [(1, 0),(-1, 0),(0, 1),(0,-1)]
+		board = self.board
+		empty = self.EMPTY
+		
+		p = "w" if by_colour == "WHITE" else 'b'
+		N = p + "N"
+		K = p + "K"
+		P = p + "P"
+		R = p + "R"
+		B = p + "B"
+		Q = p + "Q"
 		
 		#knights
-		for dr,dc in knight_offsets:
-			r, c = row + dr, col + dc
-			if 0 <= r < 8 and 0 <= c < 8:
-				if self.get_piece_type(r,c) == "N" and self.get_piece_colour(r,c) == by_colour:
-					return True
-		
-		#king
-		for dr,dc in king_offsets:
-			r, c = row + dr, col + dc
-			if 0 <= r < 8 and 0 <= c < 8:
-				if self.get_piece_type(r,c) == "K" and self.get_piece_colour(r,c) == by_colour:
-					return True
-		
+		for r,c in KNIGHT_TARGETS[row][col]:
+			if board[r][c] == N:
+				return True
+		#kings
+		for r,c in KING_TARGETS[row][col]:
+			if board[r][c] == K:
+				return True
 		#pawns
-		if by_colour == "WHITE":
-			pawn_row = row + 1
-		else:
-			pawn_row = row - 1
-		
-		for side in [-1, 1]:
-			c = col + side
-			if 0 <= pawn_row < 8 and 0 <= c < 8:
-				if self.get_piece_type(pawn_row,c) == "P" and self.get_piece_colour(pawn_row,c) == by_colour:
+		for r,c in PAWN_ATTACKER[by_colour][row][col]:
+			if board[r][c] == P:
+				return True
+				
+		#rooks and queen
+		for ray in ROOK_RAYS[row][col]:
+			for r , c in ray:
+				piece = board[r][c]
+				
+				if piece == empty:
+					continue
+				if piece == R or piece == Q:
 					return True
-		
-		#straight lines (rook or queen)
-		for dr,dc in rook_offsets:
-			r, c = row + dr, col + dc
-			while 0 <= r < 8 and 0 <= c < 8 and self.get_piece_type(r,c) == self.EMPTY:
-				r += dr
-				c += dc
-			if 0 <= r < 8 and 0 <= c < 8:
-				if self.get_piece_colour(r,c) == by_colour and self.get_piece_type(r,c) in ("R","Q"):
+				break
+		#bishop and queen 
+		for ray in BISHOP_RAYS[row][col]:
+			for r , c in ray:
+				piece = board[r][c]
+				if piece == B or piece == Q:
 					return True
-		
-		#diagonals (bishop or queen)
-		for dr,dc in bishop_offsets:
-			r, c = row + dr, col + dc
-			while 0 <= r < 8 and 0 <= c < 8 and self.get_piece_type(r,c) == self.EMPTY:
-				r += dr
-				c += dc
-			if 0 <= r < 8 and 0 <= c < 8:
-				if self.get_piece_colour(r,c) == by_colour and self.get_piece_type(r,c) in ("B","Q"):
-					return True
-		
+				if piece != empty:
+					break
+				
 		return False
+		
 #perft test
 	def perft(self,depth):
 		if depth == 0:
@@ -320,6 +313,7 @@ class Chessboard:
 		new_game.black_king_square = self.black_king_square
 		new_game.halfmove_clock = self.halfmove_clock
 		new_game.hash = self.hash
+		new_game.eval_score = self.eval_score
 		new_game.state_history = self.state_history.copy()
 		
 		
@@ -334,26 +328,23 @@ class Chessboard:
 			self.undo_move()
 		assert self.hash == compute_hash(self)
 		
-	def sliding_moves(self,row,col,offset):
-			moves = []
-			offsets = offset
-
-			for o_row,o_col in offsets:
-				to_row = row + o_row
-				to_col = col + o_col
-
-				while 0 <= to_row < 8 and 0<= to_col <8:
-					piece_colour = self.get_piece_colour(to_row,to_col)
-					if piece_colour == self.who_to_move:
-						break
-					elif piece_colour == self.EMPTY:
-						moves.append(Move(row,col,to_row,to_col))
-					else:
-						moves.append(Move(row,col,to_row,to_col))
-						break
-					to_row += o_row
-					to_col += o_col
+	def sliding_moves(self,row,col,rays,piece,me):
+			board = self.board
+			moves=[]
+			
+			for ray in rays:
+				for tr,tc in ray:
+					target = board[tr][tc]
+					
+					if target == self.EMPTY:
+						moves.append(Move(row,col,tr,tc))
+						continue
+					if target[0] != me:
+						moves.append(Move(row,col,tr,tc))
+						
+					break
 			return moves
+						
 			
 	def get_state_key(self):
 		board_tuple = tuple(tuple(row) for row in self.board)
@@ -420,196 +411,349 @@ class Chessboard:
 		
 #move logic
 	
-	def make_move(self,move):
-			target_piece = self.get_piece(move.from_row,move.from_col)
-			target_piece_colour = self.get_piece_colour(move.from_row,move.from_col)
-			
-			#special moves saves 
-			move.saved_rights = self.castling_rights
-			move.saved_enpassant = self.en_passant_square
-			move.saved_halfmove_clock = self.halfmove_clock
-			move.saved_hash = self.hash
-			if target_piece == self.EMPTY or [move.to_row,move.to_col] == [move.from_row,move.from_col]:
-				return False
-			elif self.who_to_move != target_piece_colour:
-				return False
-			else:
-				self.move_history.append(move)
-				#halfmove counter for draw
-					
-				is_capture = (self.board[move.to_row][move.to_col] != self.EMPTY or move.is_enpassant)
-				
-				if target_piece[1] == "P" or is_capture:
-						self.halfmove_clock = 0
-				else:
-						self.halfmove_clock += 1
-						
-				move.captured_piece = self.board[move.to_row][move.to_col]
-				#enpassant capture
-				if move.is_enpassant:
-					move.captured_piece = self.board[move.from_row][move.to_col]
-					self.board[move.from_row][move.to_col] = self.EMPTY
-					self.board[move.from_row][move.from_col] = self.EMPTY
-				else:
-					
-					
-						
-					move.captured_piece = self.board[move.to_row][move.to_col]
-				move.moving_piece = target_piece
-				self.board[move.to_row][move.to_col] = target_piece
-				self.board[move.from_row][move.from_col] = self.EMPTY
-				
-				
-				#priomotion 
-				if move.promotion != None:
-					self.board[move.to_row][move.to_col] = move.promotion
-				
-				#castling
-				if target_piece[1] == "K":
-					#castling
-					if target_piece_colour == "WHITE":
-						self.white_king_square = (move.to_row,move.to_col)
-					else:
-						self.black_king_square = (move.to_row,move.to_col)
-					#Rook moves for castling
-					if move.is_castle:
-						row = move.from_row
-						if move.to_col == 6: #kingside
-							self.board[row][7] = self.EMPTY
-							self.board[row][5] = target_piece_colour[0].lower()+ "R"
-						else: #queenside
-							self.board[row][0] = self.EMPTY
-							self.board[row][3] = target_piece_colour[0].lower()+"R"
-				
-				#castling rights update
-				self.castling_rights &= CASTLE_MASK[move.from_row][move.from_col] & CASTLE_MASK[move.to_row][move.to_col]
-						
-						
-				#enpassant
-				if target_piece[1] == "P" and abs(move.from_row-move.to_row) == 2:
-					row_between = (move.from_row+move.to_row) // 2
-					self.en_passant_square = (row_between,move.from_col)
-				else:
-					self.en_passant_square = None
-				
+	def make_move(self, move):
+		board = self.board
+		empty = self.EMPTY
 
-				
-				if target_piece_colour == "WHITE":
-					self.who_to_move = 'BLACK'
+		fr = move.from_row
+		fc = move.from_col
+		tr = move.to_row
+		tc = move.to_col
+
+		p = board[fr][fc]
+		mover_char = "w" if self.who_to_move == "WHITE" else "b"
+
+		if p == empty or p[0] != mover_char or (fr == tr and fc == tc):
+			return False
+
+		is_pawn = p[1] == "P"
+		is_king = p[1] == "K"
+		is_ep = move.is_enpassant
+		is_castle = move.is_castle
+
+		target = board[tr][tc]
+		captured = board[fr][tc] if is_ep else target
+		placed = move.promotion if move.promotion else p
+		rook = mover_char + "R" if is_castle else None
+
+		move.saved_rights = self.castling_rights
+		move.saved_enpassant = self.en_passant_square
+		move.saved_halfmove_clock = self.halfmove_clock
+		move.saved_hash = self.hash
+		move.saved_eval = self.eval_score
+
+		move.captured_piece = captured
+		move.moving_piece = p
+
+		self.move_history.append(move)
+
+		if is_pawn or target != empty or is_ep:
+			self.halfmove_clock = 0
+		else:
+			self.halfmove_clock += 1
+
+		board[fr][fc] = empty
+
+		if is_ep:
+			board[fr][tc] = empty
+
+		board[tr][tc] = placed
+
+		if is_king:
+			if mover_char == "w":
+				self.white_king_square = (tr, tc)
+			else:
+				self.black_king_square = (tr, tc)
+
+			if is_castle:
+				if tc == 6:
+					r_from, r_to = 7, 5
 				else:
-					self.who_to_move = "WHITE"
-					
-				h = move.saved_hash ^ Z_SIDE
-				h ^= Z_CASTLE[move.saved_rights] ^ Z_CASTLE[self.castling_rights]
-				if move.saved_enpassant is not None:
-					h ^= Z_EP[move.saved_enpassant[0]][move.saved_enpassant[1]]
-				if self.en_passant_square is not None:
-					h ^= Z_EP[self.en_passant_square[0]][self.en_passant_square[1]]
-				h ^= Z_PIECE[target_piece][move.from_row][move.from_col]
-				placed = move.promotion if move.promotion else target_piece
-				h ^= Z_PIECE[placed][move.to_row][move.to_col]
-				if move.is_enpassant:
-					h ^= Z_PIECE[move.captured_piece][move.from_row][move.to_col]
-				elif move.captured_piece != self.EMPTY:
-					h ^= Z_PIECE[move.captured_piece][move.to_row][move.to_col]
-				if move.is_castle:
-					rook = target_piece_colour[0].lower() + "R"
-					r_from, r_to = (7, 5) if move.to_col == 6 else (0, 3)
-					h ^= Z_PIECE[rook][move.from_row][r_from] ^ Z_PIECE[rook][move.from_row][r_to]
-				self.hash = h
-				self.state_history.append(h)
-				return True
+					r_from, r_to = 0, 3
+
+				board[fr][r_from] = empty
+				board[fr][r_to] = rook
+
+		self.castling_rights &= (
+			CASTLE_MASK[fr][fc] & CASTLE_MASK[tr][tc]
+		)
+
+		if is_pawn and abs(fr - tr) == 2:
+			self.en_passant_square = ((fr + tr) // 2, fc)
+		else:
+			self.en_passant_square = None
+
+		self.who_to_move = "BLACK" if mover_char == "w" else "WHITE"
+
+		# Zobrist hash
+		z_piece = Z_PIECE
+		z_from = z_piece[p]
+		z_placed = z_piece[placed]
+
+		h = move.saved_hash ^ Z_SIDE
+		h ^= Z_CASTLE[move.saved_rights] ^ Z_CASTLE[self.castling_rights]
+
+		if move.saved_enpassant is not None:
+			er, ec = move.saved_enpassant
+			h ^= Z_EP[er][ec]
+
+		if self.en_passant_square is not None:
+			er, ec = self.en_passant_square
+			h ^= Z_EP[er][ec]
+
+		h ^= z_from[fr][fc]
+		h ^= z_placed[tr][tc]
+
+		if captured != empty:
+			z_captured = z_piece[captured]
+
+			if is_ep:
+				h ^= z_captured[fr][tc]
+			else:
+				h ^= z_captured[tr][tc]
+
+		if is_castle:
+			h ^= z_piece[rook][fr][r_from]
+			h ^= z_piece[rook][fr][r_to]
+
+		self.hash = h
+		self.state_history.append(h)
+
+		# Incremental evaluation
+		psqt = PSQT
+
+		score = move.saved_eval
+		score -= psqt[p][fr][fc]
+		score += psqt[placed][tr][tc]
+
+		if captured != empty:
+			if is_ep:
+				score -= psqt[captured][fr][tc]
+			else:
+				score -= psqt[captured][tr][tc]
+
+		if is_castle:
+			score -= psqt[rook][fr][r_from]
+			score += psqt[rook][fr][r_to]
+
+		self.eval_score = score
+
+		return True
 				
 	def undo_move(self):
-			if self.move_history == []:
-				return False
-			else:
-				history = self.move_history[-1]
-				target_piece_colour = history.moving_piece
-				self.board[history.from_row][history.from_col] = history.moving_piece
-				self.board[history.to_row][history.to_col] = history.captured_piece
-				self.move_history.pop()
-				
-				
-				if history.moving_piece == self.WHITE_KING:
-					self.white_king_square = (history.from_row, history.from_col)
-				elif history.moving_piece == self.BLACK_KING:
-					self.black_king_square = (history.from_row, history.from_col)
+		if not self.move_history:
+			return False
 
-				
-				#undo special moves flags
-				self.castling_rights = history.saved_rights
-				self.en_passant_square = history.saved_enpassant
-				self.hash = history.saved_hash
-				if history.is_castle:
-						row = history.from_row
-						if history.to_col == 6: #kingside
-							self.board[row][5] = self.EMPTY
-							self.board[row][7] = target_piece_colour[0].lower()+ "R"
-						else: #queenside
-							self.board[row][3] = self.EMPTY
-							self.board[row][0] = target_piece_colour[0].lower()+"R"
-				#enpassant
-				if history.is_enpassant:
-					self.board[history.to_row][history.to_col] = self.EMPTY
-					self.board[history.from_row][history.to_col] = history.captured_piece
-				
-			
-				if self.who_to_move == "WHITE":
-					self.who_to_move = "BLACK"
-				else:
-					self.who_to_move = "WHITE"
-					
-				self.halfmove_clock = history.saved_halfmove_clock
-				self.state_history.pop()
-				return True
+		history = self.move_history[-1]
+
+		board = self.board
+		empty = self.EMPTY
+
+		fr = history.from_row
+		fc = history.from_col
+		tr = history.to_row
+		tc = history.to_col
+
+		p = history.moving_piece
+		captured = history.captured_piece
+
+		is_ep = history.is_enpassant
+		is_castle = history.is_castle
+
+		board[fr][fc] = p
+		board[tr][tc] = captured
+
+		self.move_history.pop()
+
+		if p == self.WHITE_KING:
+			self.white_king_square = (fr, fc)
+		elif p == self.BLACK_KING:
+			self.black_king_square = (fr, fc)
+
+		if is_castle:
+			rook = p[0] + "R"
+
+			if tc == 6:
+				r_from, r_to = 5, 7
+			else:
+				r_from, r_to = 3, 0
+
+			board[fr][r_from] = empty
+			board[fr][r_to] = rook
+
+		if is_ep:
+			board[tr][tc] = empty
+			board[fr][tc] = captured
+
+		self.castling_rights = history.saved_rights
+		self.en_passant_square = history.saved_enpassant
+		self.hash = history.saved_hash
+		self.halfmove_clock = history.saved_halfmove_clock
+		self.eval_score = history.saved_eval
+
+		self.who_to_move = (
+			"BLACK" if self.who_to_move == "WHITE" else "WHITE"
+		)
+
+		self.state_history.pop()
+
+		return True
 			
 	
 	
 	def pseudo_move_generator(self):
-			moves = []
-			
-			for indx_row,row in enumerate(self.board):
-				for indx_col,col_element in enumerate(row):
-					if self.get_piece_colour(indx_row,indx_col) != self.who_to_move or col_element == self.EMPTY:
-						continue
-						
+		moves = []
+		board = self.board
+		empty = self.EMPTY
+
+		white = self.who_to_move == "WHITE"
+		me = "w" if white else "b"
+		enemy = "b" if white else "w"
+
+		for r, row in enumerate(board):
+			for c, piece in enumerate(row):
+
+				if piece[0] != me:
+					continue
+
+				kind = piece[1]
+
+				# KNIGHT
+				if kind == "N":
+					for tr, tc in KNIGHT_TARGETS[r][c]:
+						if board[tr][tc][0] != me:
+							moves.append(Move(r, c, tr, tc))
+
+				# KING
+				elif kind == "K":
+					for tr, tc in KING_TARGETS[r][c]:
+						if board[tr][tc][0] != me:
+							moves.append(Move(r, c, tr, tc))
+
+					moves.extend(self.castle_moves(r, c))
+
+				# PAWN
+				elif kind == "P":
+
+					direction = -1 if white else 1
+					start_row = 6 if white else 1
+					last_row = 0 if white else 7
+
+					one_step = r + direction
+
+					if 0 <= one_step < 8:
+
+						# Forward movement
+						if board[one_step][c] == empty:
+
+							if one_step == last_row:
+								for promotion in ("Q", "R", "B", "N"):
+									moves.append(
+										Move(r, c, one_step, c,
+											promotion=me + promotion)
+									)
+							else:
+								moves.append(Move(r, c, one_step, c))
+
+							# Double movement
+							two_step = r + 2 * direction
+
+							if r == start_row and board[two_step][c] == empty:
+								moves.append(Move(r, c, two_step, c))
+
+						# Captures and en passant
+						for dc in (-1, 1):
+							cap_col = c + dc
+
+							if not 0 <= cap_col < 8:
+								continue
+
+							target = board[one_step][cap_col]
+
+							if target != empty and target[0] == enemy:
+
+								if one_step == last_row:
+									for promotion in ("Q", "R", "B", "N"):
+										moves.append(
+											Move(r, c, one_step, cap_col,
+												promotion=me + promotion)
+										)
+								else:
+									moves.append(
+										Move(r, c, one_step, cap_col)
+									)
+
+							# En passant
+							if (one_step, cap_col) == self.en_passant_square:
+								moves.append(
+									Move(r, c, one_step, cap_col,
+										is_enpassant=True)
+								)
+
+				# SLIDING PIECES
+				else:
+
+					if kind == "B":
+						rays = BISHOP_RAYS[r][c]
+
+					elif kind == "R":
+						rays = ROOK_RAYS[r][c]
+
+					elif kind == "Q":
+						rays = QUEEN_RAYS[r][c]
+
 					else:
-						piece_type = self.get_piece_type(indx_row,indx_col)
-						piece_colour = self.get_piece_colour(indx_row,indx_col)
-						
-						#knight moves
-						if piece_type == "N":
-							moves.extend(self.knight_moves(indx_row,indx_col))
-						elif piece_type == "K":
-							moves.extend(self.king_moves(indx_row,indx_col))
-						elif piece_type == "B":
-							moves.extend(self.bishop_moves(indx_row,indx_col))
-						elif piece_type == "Q":
-							moves.extend(self.queen_moves(indx_row,indx_col))
-						elif piece_type == "R":
-							moves.extend(self.rook_moves(indx_row,indx_col))
-						elif piece_type == "P":
-							moves.extend(self.pawn_moves(indx_row,indx_col))
-			return moves
+						continue
+
+					for ray in rays:
+						for tr, tc in ray:
+
+							target = board[tr][tc]
+
+							if target == empty:
+								moves.append(Move(r, c, tr, tc))
+								continue
+
+							if target[0] == enemy:
+								moves.append(Move(r, c, tr, tc))
+
+							break
+
+		return moves
+					
+					
 							
 						
 #legal move generator
 	def legal_moves(self):
 		legal_moves = []
-		mover = self.who_to_move
-		if mover == "WHITE":
-			enemy = "BLACK"
-		else:
-			enemy = "WHITE"
-		for move in self.pseudo_move_generator():
-			self.make_move(move)
-			king_row,king_col = self.find_king(mover)
-			if not self.square_attacked(king_row,king_col,enemy):
-				legal_moves.append(move)
-			self.undo_move()
-		return legal_moves
+		moves = self.pseudo_move_generator()
+		side = self.who_to_move
+		in_check = self.is_in_check(side)
 
+		enemy = "WHITE" if side == "BLACK" else "BLACK"
+		kr, kc = self.find_king(side)
+
+		for move in moves:
+			fr, fc = move.from_row, move.from_col
+			is_king_move = (fr, fc) == (kr, kc)
+			aligned = (fr == kr) or (fc == kc) or (abs(fr - kr) == abs(fc - kc))
+			needs_test = in_check or is_king_move or aligned or move.is_enpassant
+
+			self.make_move(move)
+
+			illegal = False
+
+			if needs_test:
+				kr2, kc2 = self.find_king(side)
+				illegal = self.square_attacked(kr2, kc2, enemy)
+
+			self.undo_move()
+
+			if not illegal:
+				legal_moves.append(move)
+
+		return legal_moves
 	#knight move gen
 	def knight_moves(self,row,col):
 		moves = []
@@ -625,6 +769,67 @@ class Chessboard:
 					moves.append(Move(row,col,to_row,to_col))
 
 		return moves
+		
+#function that returns all capture moves
+	def capture_moves(self):
+		moves = []
+		board = self.board
+		EMPTY = self.EMPTY
+		colour = self.who_to_move
+		
+		if colour == "WHITE":
+			me,enemy = "w" , "b"
+			direction,last_row = -1,0
+		else:
+			me,enemy = "b" , "w"
+			direction,last_row = 1,7
+		ep = self.en_passant_square
+		
+		for r in range(8):
+			row = board[r]
+			for c in range(8):
+				p = row[c]
+				
+				if p[0] != me:
+					continue
+				t = p[1]
+				if t == "N" or t == "K":
+					targets = KNIGHT_TARGETS[r][c] if t == "N" else KING_TARGETS[r][c]
+					for tr,tc in targets:
+						if board[tr][tc][0] == enemy:
+							moves.append(Move(r,c,tr,tc))
+				elif t == "P":
+					tr = r + direction
+					if not (0 <= tr < 8):
+						continue
+					for dc in (-1, 1):
+						tc = c + dc
+						if 0 <= tc < 8:
+							if board[tr][tc][0] == enemy:
+								moves.extend(self.add_pawn_moves(r, c, tr, tc, last_row, colour))
+							elif ep == (tr, tc):
+								moves.append(Move(r, c, tr, tc, is_enpassant=True))
+					if tr == last_row and board[tr][c] == EMPTY:
+						moves.append(Move(r, c, tr, c, promotion=me + "Q"))
+				else:
+					if t == "B":
+						rays = BISHOP_RAYS[r][c]
+					elif t == "R":
+						rays = ROOK_RAYS[r][c]
+					else:
+						rays = QUEEN_RAYS[r][c]
+					for ray in rays:
+						for tr, tc in ray:
+							q = board[tr][tc]
+							if q == EMPTY:
+								continue
+							if q[0] == enemy:
+								moves.append(Move(r, c, tr, tc))
+							break
+		return moves
+
+			
+		
 
 	#king move gen
 	def king_moves(self,row,col):
@@ -744,6 +949,15 @@ class Chessboard:
 																													
 #MOVE CLASS EXPLICITLY FOR STORAGE OF MOVE AND PIECE CAPTURE HISTORY			
 class Move:
+	__slots__ = (
+		"from_row", "from_col",
+		"to_row", "to_col",
+		"captured_piece", "moving_piece",
+		"promotion", "is_castle",
+		"saved_rights", "saved_enpassant",
+		"is_enpassant", "saved_halfmove_clock",
+		"saved_hash", "saved_eval"
+	)
 	def __init__(self,from_row,from_col,to_row,to_col,promotion=None,is_castle=False,is_enpassant=False):
 			self.from_row = from_row
 			self.from_col = from_col
@@ -758,6 +972,7 @@ class Move:
 			self.is_enpassant = is_enpassant
 			self.saved_halfmove_clock = 0
 			self.saved_hash = 0
+			self.saved_eval = 0
 	def __repr__(self):
 	           return (f"Move(({self.from_row}, {self.from_col})"
 	           f" -> ({self.to_row}, {self.to_col},{self.promotion}))"
